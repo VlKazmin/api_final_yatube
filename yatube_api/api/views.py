@@ -1,16 +1,18 @@
 from django.shortcuts import get_object_or_404
 
-from rest_framework import filters, permissions, viewsets
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework import filters, mixins, viewsets
 from rest_framework.pagination import LimitOffsetPagination
-
+from rest_framework.permissions import (
+    IsAuthenticatedOrReadOnly,
+    IsAuthenticated,
+)
 
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (
     CommentSerializer,
+    FollowSerializer,
     GroupSerializer,
     PostSerializer,
-    FollowSerializer,
 )
 
 from posts.models import Comment, Group, Post, Follow
@@ -24,7 +26,7 @@ class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.select_related("author", "group")
     serializer_class = PostSerializer
     permission_classes = [
-        permissions.IsAuthenticatedOrReadOnly,
+        IsAuthenticatedOrReadOnly,
         IsAuthorOrReadOnly,
     ]
     pagination_class = LimitOffsetPagination
@@ -54,7 +56,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     serializer_class = CommentSerializer
     permission_classes = [
-        permissions.IsAuthenticatedOrReadOnly,
+        IsAuthenticatedOrReadOnly,
         IsAuthorOrReadOnly,
     ]
 
@@ -79,36 +81,19 @@ class CommentViewSet(viewsets.ModelViewSet):
         post = get_object_or_404(Post, id=self.kwargs["post_id"])
         serializer.save(author=self.request.user, post=post)
 
-    def perform_update(self, serializer):
-        """
-        Обновляет данные существующего комментария в базе данных.
-        Проверяет, что автором комментария является текущий пользователь.
-        """
 
-        if serializer.instance.author != self.request.user:
-            raise PermissionDenied("Изменение чужого комментария запрещено!")
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        """
-        Удаляет существующий комментарий из базы данных.
-        Проверяет, что автором комментария является текущий пользователь.
-        """
-
-        if instance.author != self.request.user:
-            raise PermissionDenied("Вы не можете удалить чужой комментарий")
-        instance.delete()
-
-
-class FollowViewSet(viewsets.ModelViewSet):
+class FollowViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet
+):
     """
     Представление для получения информации о конкретной подписке и
     создания новой подписки на автора.
     """
 
-    queryset = Follow.objects.all()
     serializer_class = FollowSerializer
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
     filter_backends = [filters.SearchFilter]
     search_fields = ["following__username"]
 
@@ -122,9 +107,4 @@ class FollowViewSet(viewsets.ModelViewSet):
         """
         Создает новую подписку на автора.
         """
-        following = serializer.validated_data["following"]
-        if self.request.user == following:
-            raise ValidationError("Вы не можете подписаться на самого себя")
-        if self.get_queryset().filter(following=following).exists():
-            raise ValidationError(f"Вы уже подписаны на {following}")
         serializer.save(user=self.request.user)
