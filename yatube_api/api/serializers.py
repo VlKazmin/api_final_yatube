@@ -43,13 +43,10 @@ class GroupSerializer(serializers.ModelSerializer):
 class FollowSerializer(serializers.ModelSerializer):
     """Сериализатор для модели Follow."""
 
-    user = SlugRelatedField(
-        slug_field="username",
-        read_only=True
-    )
+    user = SlugRelatedField(slug_field="username", read_only=True)
     following = SlugRelatedField(
         slug_field="username",
-        queryset=User.objects.all()
+        queryset=User.objects.all(),
     )
 
     class Meta:
@@ -59,9 +56,9 @@ class FollowSerializer(serializers.ModelSerializer):
             "following",
         )
 
-    def validate(self, data):
+    def validate_following(self, value):
         user = self.context["request"].user
-        following = data["following"]
+        following = value
 
         if user == following:
             raise serializers.ValidationError(
@@ -72,4 +69,4 @@ class FollowSerializer(serializers.ModelSerializer):
                 "Вы уже подписаны на этого автора"
             )
 
-        return data
+        return value
