@@ -17,7 +17,7 @@
 
 1. Склонируйте репозиторий на свой компьютер:
     ```bash
-    clone git@github.com:VlKazmin/api_final_yatube.git
+    git clone git@github.com:VlKazmin/api_final_yatube.git
     ```
 2. Создайте виртуальное окружение:
     ```bash
